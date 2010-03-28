@@ -1,0 +1,62 @@
+<?php
+
+
+function fieldmerge_action_info() {
+  return array('fieldmerge_action' => array(
+    'type' => 'node',
+    'description' => t('Merge node fields'),
+    'configurable' => TRUE,
+    'behavior' => array('changes_node_property'),
+  ));
+}
+
+function fieldmerge_action(&$node, $context) {
+  foreach($context['fields'] as $from => $to) {
+    if (empty($to) || empty($from)) continue; 
+    if ($node->$from) {
+      foreach($node->$from as $value) $node->{$to}[] = $value;
+      $node->$from = array();
+    }
+  }
+}
+
+function fieldmerge_action_form($context) {
+  $fields = content_fields();
+  $types = array();
+  foreach ($fields as $field => $field_info) {
+    $types[$field_info['type']][$field] = $field_info;
+    $types2[$field_info['type']][$field] = check_plain($field_info['widget']['label']);
+  }
+  $form['fields'] = array(
+    '#tree' => true,
+  );
+  foreach ($types as $type => $_fields) {
+    if(count($_fields) > 1) {
+      foreach($_fields as $field => $field_info) {
+        $form['fields'][$field] = array(
+          '#type'=> 'select',
+          '#options' => array(''=>t('No merge')) + $types2[$type],
+          '#default_value' => isset($context['fields'][$field]) ? $context['fields'][$field] : '',
+          '#title' => t('From %field to ', 
+              array('%field' => $field_info['widget']['label'])
+            ),
+        );  
+      }
+    }
+  }
+  return $form;
+}
+
+
+function fieldmerge_action_submit($form, $form_state) {
+  return array(
+    'fields' => $form_state['values']['fields'],
+  );
+}
+
+function fieldmerge_action_validate($form, $form_state) {
+  if (empty($form_state['values']['fields'])) {
+      form_set_error('fields', t('You must select at least one term to merge.'));
+  }
+}
+
